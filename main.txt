@@ -1,0 +1,136 @@
+#include <QApplication>
+#include <QWidget>
+#include <QTableWidget>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QFile>
+#include <QTextStream>
+
+class ServiceListWidget : public QWidget {
+    Q_OBJECT
+
+private:
+    QTableWidget *tableWidget;
+    QLabel *nameLabel;
+    QLineEdit *nameEdit;
+    QLabel *specialistLabel;
+    QLineEdit *specialistEdit;
+    QLabel *costLabel;
+    QLineEdit *costEdit;
+    QLabel *timeLabel;
+    QLineEdit *timeEdit;
+    QPushButton *addButton;
+
+    QString filename = "services.txt";
+    
+    // сохраняем данные в файл
+    void saveServices() {
+        QFile file(filename);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            for (int row = 0; row < tableWidget->rowCount(); ++row) {
+                for (int col = 0; col < 4; ++col) {
+                    QTableWidgetItem *item = tableWidget->item(row, col);
+                    out << item->text() << '|';
+                }
+                out << "\n";
+            }
+            file.close();
+        }
+    }
+    
+    // считываем данные из файла
+    void loadServices() {
+        QFile file(filename);
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&file);
+            while (!in.atEnd()) {
+                QString line = in.readLine();
+                QStringList fields = line.split("|");
+                if (fields.size() >= 4) {
+                    int row = tableWidget->rowCount();
+                    tableWidget->insertRow(row);
+                    for (int col = 0; col < 4; ++col) {
+                        tableWidget->setItem(row, col, new QTableWidgetItem(fields.at(col)));
+                    }
+                }
+            }
+            file.close();
+        }
+    }
+
+public slots:
+    void addService() {
+        int row = tableWidget->rowCount();
+        tableWidget->insertRow(row);
+        tableWidget->setItem(row, 0, new QTableWidgetItem(nameEdit->text()));
+        tableWidget->setItem(row, 1, new QTableWidgetItem(specialistEdit->text()));
+        tableWidget->setItem(row, 2, new QTableWidgetItem(costEdit->text()));
+        tableWidget->setItem(row, 3, new QTableWidgetItem(timeEdit->text()));
+
+        saveServices();
+    }
+
+    void deleteService(QTableWidgetItem *item) {
+        tableWidget->removeRow(item->row());
+
+        saveServices();
+    }
+
+public:
+    ServiceListWidget(QWidget *parent = nullptr) : QWidget(parent) {
+        QVBoxLayout *mainLayout = new QVBoxLayout(this); // контейнер для вертикальных виджетов, указываем количество столбцов, их заголовки и добавляем всё в виджет
+        tableWidget = new QTableWidget(this);
+        tableWidget->setColumnCount(4);
+        QStringList headers;
+        headers << "Service" << "Specialist" << "Cost" << "Time";
+        tableWidget->setHorizontalHeaderLabels(headers);
+
+        mainLayout->addWidget(tableWidget);
+
+        QHBoxLayout *inputLayout = new QHBoxLayout; // контейнер для горизонтальных виджетов (поле ввода)
+        nameLabel = new QLabel("Service:", this);
+        nameEdit = new QLineEdit(this);
+        specialistLabel = new QLabel("Specialist:", this);
+        specialistEdit = new QLineEdit(this);
+        costLabel = new QLabel("Cost:", this);
+        costEdit = new QLineEdit(this);
+        timeLabel = new QLabel("Time:", this);
+        timeEdit = new QLineEdit(this);
+        addButton = new QPushButton("Add", this);
+
+        inputLayout->addWidget(nameLabel);
+        inputLayout->addWidget(nameEdit);
+        inputLayout->addWidget(specialistLabel);
+        inputLayout->addWidget(specialistEdit);
+        inputLayout->addWidget(costLabel);
+        inputLayout->addWidget(costEdit);
+        inputLayout->addWidget(timeLabel);
+        inputLayout->addWidget(timeEdit);
+        inputLayout->addWidget(addButton);
+
+        mainLayout->addLayout(inputLayout);
+        
+        // указываем функцию для кликов 
+        connect(addButton, &QPushButton::clicked, this, &ServiceListWidget::addService);
+        connect(tableWidget, &QTableWidget::itemDoubleClicked, this, &ServiceListWidget::deleteService);
+
+        // считываем файл.тхт перед каждым запуском
+        loadServices();
+    }
+
+};
+
+#include "main.moc" // Добавлена строка для включения мета-информации MOC
+
+int main(int argc, char *argv[]) {
+    QApplication app(argc, argv);
+
+    ServiceListWidget serviceListWidget;
+    serviceListWidget.show();
+
+    return app.exec();
+}
